@@ -1,0 +1,28 @@
+# Model configuration
+model:
+  esm_model_name: "facebook/esm2_t12_35M_UR50D"  # Options: t6_8M, t12_35M, t33_650M
+  embedding_dim: 480  # 320 for 8M, 480 for 35M, 1280 for 650M
+  hidden_dims: [256, 128]
+  dropout: 0.3
+
+# Training configuration
+training:
+  batch_size: 32
+  epochs: 50
+  learning_rate: 1e-3
+  weight_decay: 1e-5
+  early_stopping_patience: 10
+  test_split: 0.15
+  val_split: 0.15
+
+# Data configuration
+data:
+  disprot_url: "https://disprot.org/api/v1/entries"
+  max_sequence_length: 1024
+  min_sequence_length: 20
+
+# Output
+output:
+  model_save_path: "checkpoints/idr_model.pt"
+  results_dir: "results/"
+  plots_dir: "plots/"
