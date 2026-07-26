@@ -1,3 +1,4 @@
+%%writefile /content/idr_prediction/data/download_disprot.py
 """
 Download and parse DisProt data for IDR prediction.
 Fetches full entry details to get disorder annotations.
@@ -36,7 +37,6 @@ class DisProtDownloader:
     def get_entry_details(self, entry_id: str) -> Dict:
         """Fetch full details (including annotations) for a single entry."""
         cache_path = f"{self.cache_dir}/{entry_id}.json"
-        # Check cache
         if os.path.exists(cache_path):
             with open(cache_path, 'r') as f:
                 return json.load(f)
@@ -46,10 +46,9 @@ class DisProtDownloader:
             response = self.session.get(url)
             response.raise_for_status()
             data = response.json()
-            # Cache it
             with open(cache_path, 'w') as f:
                 json.dump(data, f)
-            time.sleep(0.2)  # Be polite to the server
+            time.sleep(0.2)
             return data
         except Exception as e:
             print(f"Error fetching entry {entry_id}: {e}")
@@ -60,26 +59,20 @@ class DisProtDownloader:
         idr_regions = []
         annotations = entry.get('annotations', [])
         for ann in annotations:
-            # DisProt uses 'type' = 'disorder' for IDRs
             if ann.get('type') == 'disorder':
                 start = ann.get('start')
                 end = ann.get('end')
                 if start is not None and end is not None:
-                    # Convert to 0‑based, half‑open [start‑1, end)
                     idr_regions.append((start - 1, end))
         return idr_regions
 
     def create_dataset(self, summaries: List[Dict], max_entries: int = 200) -> pd.DataFrame:
-        """
-        Fetch details for each summary and build the dataset.
-        """
         data = []
         print(f"Fetching details for up to {max_entries} entries...")
         for i, summary in enumerate(tqdm(summaries[:max_entries], desc="Fetching details")):
             entry_id = summary.get('id')
             if not entry_id:
                 continue
-            # Get full details
             full_entry = self.get_entry_details(entry_id)
             if not full_entry:
                 continue
@@ -88,13 +81,9 @@ class DisProtDownloader:
             if not sequence or len(sequence) < 20:
                 continue
 
-            # Parse disorder regions from the full entry
             idr_regions = self.parse_disorder_annotations(full_entry)
-
-            # Create per‑residue labels
             labels = np.zeros(len(sequence), dtype=int)
             for start, end in idr_regions:
-                # Clamp to sequence length
                 start = max(0, start)
                 end = min(len(sequence), end)
                 labels[start:end] = 1
@@ -114,22 +103,14 @@ class DisProtDownloader:
 
 def main():
     downloader = DisProtDownloader()
-    
-    # Get summaries
-    summaries = downloader.get_entries(limit=500)  # fetch up to 500 summaries
+    summaries = downloader.get_entries(limit=500)
     if not summaries:
         print("No entries fetched. Check internet connection.")
         return
-    
-    # Create dataset (fetch details for first 200 to keep it quick)
     df = downloader.create_dataset(summaries, max_entries=200)
-    
-    # Save
     os.makedirs("data/raw", exist_ok=True)
     df.to_pickle("data/raw/disprot_dataset.pkl")
     df.to_csv("data/raw/disprot_dataset.csv", index=False)
-    
-    # Summary
     total_idr = sum(df['labels'].apply(lambda x: sum(x)))
     print(f"\nDataset Summary:")
     print(f"  Total sequences: {len(df)}")
