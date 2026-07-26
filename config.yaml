@@ -1,28 +1,89 @@
-# Model configuration
+# ============================================================
+# IDR Prediction using ESM-2 + MLP
+# Configuration file
+# ============================================================
+
+seed: 42
+
+# ------------------------------------------------------------
+# Model
+# ------------------------------------------------------------
 model:
-  esm_model_name: "facebook/esm2_t12_35M_UR50D"  # Options: t6_8M, t12_35M, t33_650M
-  embedding_dim: 480  # 320 for 8M, 480 for 35M, 1280 for 650M
-  hidden_dims: [256, 128]
-  dropout: 0.3
+  esm_model_name: "facebook/esm2_t12_35M_UR50D"
+  embedding_dim: 480
+  freeze_esm: true
 
-# Training configuration
+  classifier:
+    hidden_dims: [256, 128]
+    dropout: 0.25
+    activation: "relu"
+
+# ------------------------------------------------------------
+# Dataset
+# ------------------------------------------------------------
+dataset:
+  source: "DisProt"
+  auto_download: true
+
+  train_fraction: 0.70
+  validation_fraction: 0.15
+  test_fraction: 0.15
+
+  max_residues_per_chunk: 1000
+
+# ------------------------------------------------------------
+# Training
+# ------------------------------------------------------------
 training:
-  batch_size: 32
-  epochs: 50
-  learning_rate: 1e-3
-  weight_decay: 1e-5
-  early_stopping_patience: 10
-  test_split: 0.15
-  val_split: 0.15
+  epochs: 10
 
-# Data configuration
-data:
-  disprot_url: "https://disprot.org/api/v1/entries"
-  max_sequence_length: 1024
-  min_sequence_length: 20
+  optimizer: "Adam"
 
-# Output
+  learning_rate: 0.001
+  weight_decay: 0.0001
+
+  batch_chunks: 8
+  embedding_batch_size: 2
+
+  early_stopping_patience: 3
+
+# ------------------------------------------------------------
+# Embeddings
+# ------------------------------------------------------------
+embeddings:
+  cache_embeddings: true
+  cache_directory: "embeddings"
+  force_recompute: false
+
+# ------------------------------------------------------------
+# Hardware
+# ------------------------------------------------------------
+hardware:
+  device: "auto"
+  num_workers: 0
+
+# ------------------------------------------------------------
+# Outputs
+# ------------------------------------------------------------
 output:
-  model_save_path: "checkpoints/idr_model.pt"
-  results_dir: "results/"
-  plots_dir: "plots/"
+  checkpoints: "checkpoints/"
+  results: "results/"
+  plots: "plots/"
+
+  save_best_model: true
+  checkpoint_name: "idr_esm2_mlp_full.pt"
+
+# ------------------------------------------------------------
+# Evaluation
+# ------------------------------------------------------------
+evaluation:
+  metrics:
+    - AUROC
+    - AUPRC
+    - F1
+    - Precision
+    - Recall
+    - MCC
+
+  save_predictions: true
+  save_confusion_matrix: true
